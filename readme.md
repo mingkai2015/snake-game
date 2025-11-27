@@ -1,92 +1,94 @@
 # Snake 3D - PvZ Style
 
-这是一个基于 Python 和 Pygame 开发的伪 3D 风格贪吃蛇游戏。游戏支持单人模式和双人对战模式，具有独特的视觉风格和丰富的游戏机制。
+This is a pseudo-3D style Snake game developed with Python and Pygame. It features unique visuals and rich gameplay mechanics, supporting both single-player and two-player versus modes.
 
-## 快速开始 (Quickstart)
+## Quickstart
 
-### 前置要求
+### Prerequisites
 - Python 3.8+
-- Poetry (推荐) 或 pip
+- Poetry (Recommended) or pip
 
-### 安装与运行 (使用 Poetry)
+### Installation & Run (Using Poetry)
 
-1. **安装依赖**
+1. **Install Dependencies**
    ```bash
    poetry install
    ```
 
-2. **运行游戏**
+2. **Run the Game**
    ```bash
    poetry run start
-   # 或者
+   # Or
    poetry run python main.py
    ```
 
-### 安装与运行 (使用 pip)
+### Installation & Run (Using pip)
 
-1. **安装依赖**
+> Note: If `requirements.txt` is not present, you can generate it via `poetry export` or manually install `pygame`.
+
+1. **Install Dependencies**
    ```bash
-   pip install -r requirements.txt
+   pip install pygame
    ```
 
-2. **运行游戏**
+2. **Run the Game**
    ```bash
    python main.py
    ```
 
-## 技术架构 (Technical Architecture)
+## Technical Architecture
 
-本项目采用模块化的包结构设计，使用 **Poetry** 进行依赖管理和构建。主要依赖 **Pygame** 库进行图形渲染和事件处理。
+This project utilizes a modular package structure and uses **Poetry** for dependency management and building. It primarily relies on the **Pygame** library for graphics rendering and event handling.
 
-*   **项目结构**:
-    *   `snake_game/`: 核心源码包
-        *   `main.py`: 程序入口
-        *   `game.py`: 核心控制器
-        *   `snake.py`: 蛇实体逻辑
-        *   `sprites.py`: 其他游戏实体 (Food, Bomb, Explosion)
-        *   `ui.py`: UI 组件和字体系统
-        *   `settings.py`: 全局配置
-    *   `pyproject.toml`: 项目配置与依赖管理
+*   **Project Structure**:
+    *   `snake_game/`: Core source package
+        *   `main.py`: Package entry point
+        *   `game.py`: Core controller
+        *   `snake.py`: Snake entity logic
+        *   `sprites.py`: Other game entities (Food, Bomb, Explosion)
+        *   `ui.py`: UI components and font system
+        *   `settings.py`: Global configuration
+    *   `pyproject.toml`: Project configuration and dependency management
 
-*   **核心语言**: Python 3
-*   **图形引擎**: Pygame (SDL wrapper)
-*   **渲染方式**: 2D 原语绘制（圆、矩形），通过图层叠加和高光/阴影效果模拟 3D 视觉体验。
-*   **字体系统**: 内置自定义 `PixelFont` 类，直接通过代码绘制像素风格字体，不依赖外部字体文件，确保在任何环境下的一致性（同时保留了加载系统字体的回退机制）。
-*   **输入处理**: 键盘事件用于控制蛇的移动，鼠标事件用于 UI 交互。
+*   **Core Language**: Python 3
+*   **Graphics Engine**: Pygame (SDL wrapper)
+*   **Rendering Method**: 2D primitive drawing (circles, rectangles), simulating a 3D visual experience through layering, highlights, and shadows.
+*   **Font System**: Built-in custom `PixelFont` class that renders pixel-style fonts directly via code. It does not rely on external font files, ensuring consistency across environments (while retaining a fallback mechanism for loading system fonts).
+*   **Input Handling**: Keyboard events control snake movement, while mouse events are used for UI interaction.
 
-## 逻辑架构 (Logical Architecture)
+## Logical Architecture
 
-游戏逻辑采用了面向对象编程 (OOP) 的设计思想，主要模块划分如下：
+The game logic adopts Object-Oriented Programming (OOP) principles. The main modules are divided as follows:
 
-### 1. 核心控制器 (`Game` 类)
-系统的中枢，负责：
-*   **状态管理**: 维护游戏状态机（`MENU` 菜单, `PLAYING` 游戏进行中, `PAUSED` 暂停, `GAMEOVER` 结束）。
-*   **主循环**: 协调 `handle_events` (输入), `update` (逻辑), `draw` (渲染) 三大生命周期。
-*   **模式管理**: 处理单人 (`SINGLE`) 和双人对战 (`VERSUS`) 模式的初始化和规则差异。
+### 1. Core Controller (`Game` Class)
+The central hub of the system, responsible for:
+*   **State Management**: Maintaining the game state machine (`MENU`, `PLAYING`, `PAUSED`, `GAMEOVER`).
+*   **Main Loop**: Coordinating the three major lifecycles: `handle_events` (Input), `update` (Logic), and `draw` (Rendering).
+*   **Mode Management**: Handling initialization and rule differences for Single Player (`SINGLE`) and Two Player Versus (`VERSUS`) modes.
 
-### 2. 实体对象 (Entities)
-*   **Snake (蛇)**:
-    *   管理身体坐标列表、移动方向、生长逻辑。
-    *   实现碰撞检测（自身、墙壁、敌人）。
-    *   包含特殊状态逻辑：`freeze` (被击中冻结) 和 `shrink` (炸弹伤害)。
-*   **Food (食物)**:
-    *   负责随机生成不与障碍物重叠的坐标。
-    *   管理食物的渲染。
-*   **Bomb (炸弹)**:
-    *   作为障碍物随机刷新。
-    *   包含倒计时或触发逻辑，具有独特的外观渲染。
-*   **Explosion (爆炸效果)**:
-    *   基于粒子系统的简单特效，用于炸弹触发时的视觉反馈。
+### 2. Entities
+*   **Snake**:
+    *   Manages the list of body coordinates, movement direction, and growth logic.
+    *   Implements collision detection (self, walls, enemies).
+    *   Includes special state logic: `freeze` (frozen when hit) and `shrink` (bomb damage).
+*   **Food**:
+    *   Responsible for randomly generating coordinates that do not overlap with obstacles.
+    *   Manages food rendering.
+*   **Bomb**:
+    *   Randomly spawns as an obstacle.
+    *   Contains countdown or trigger logic with unique visual rendering.
+*   **Explosion**:
+    *   A simple particle system effect used for visual feedback when bombs are triggered.
 
-### 3. 辅助系统
-*   **PixelFont**: 自定义字符点阵数据，实现了基本的 ASCII 字符渲染，支持缩放。
-*   **Button**: 封装了矩形区域检测、鼠标悬停效果和点击回调，用于构建 UI 菜单。
+### 3. Auxiliary Systems
+*   **PixelFont**: Custom character bitmap data implementing basic ASCII character rendering with scaling support.
+*   **Button**: Encapsulates rectangular area detection, mouse hover effects, and click callbacks for building the UI menu.
 
-## 游戏机制
+## Game Mechanics
 
-*   **移动**: 蛇头带领身体移动，支持平滑的网格移动。
-*   **边界处理**: 包含撞墙反弹机制（在特定角度下）或游戏结束判定。
-*   **对战规则**: 在双人模式中，蛇头碰撞到对方身体会被冻结并反向弹开，增加了对抗性。
-*   **道具**:
-    *   **食物**: 增加分数并使蛇身增长。
-    *   **炸弹**: 触碰会减少蛇身长度并产生爆炸效果。
+*   **Movement**: The snake head leads the body movement, supporting smooth grid-based movement.
+*   **Boundary Handling**: Includes wall bounce mechanics (at specific angles) or game over conditions.
+*   **Versus Rules**: In two-player mode, if a snake's head collides with the opponent's body, it gets frozen and bounces back, adding a layer of strategy.
+*   **Items**:
+    *   **Food**: Increases score and causes the snake to grow.
+    *   **Bomb**: Contact reduces the snake's length and triggers an explosion effect.
