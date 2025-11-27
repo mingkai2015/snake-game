@@ -3,7 +3,7 @@ import sys
 from . import settings
 from . import ui
 from .snake import Snake
-from .sprites import Food, Bomb, Explosion
+from .sprites import Food, Bomb, Explosion, Coin
 
 class Game:
     def __init__(self):
@@ -20,8 +20,11 @@ class Game:
         self.snakes = []
         self.food = Food()
         self.bombs = []
+        self.coins = []
         self.explosions = []
         self.score = [0, 0]
+        self.start_time = 0
+        self.time_remaining = settings.GAME_DURATION
         self.fullscreen = False
         self.last_move_time = 0
         
@@ -59,7 +62,10 @@ class Game:
         self.snakes = []
         self.score = [0, 0]
         self.last_move_time = pygame.time.get_ticks()
+        self.start_time = pygame.time.get_ticks()
+        self.time_remaining = settings.GAME_DURATION
         self.bombs = []
+        self.coins = []
         self.explosions = []
         
         self.buttons['UI'][0].text = "Pause"
@@ -93,8 +99,36 @@ class Game:
         self.food.spawn([s.body for s in self.snakes])
         
         self.spawn_bomb()
+        self.spawn_coins()
         
         self.state = "PLAYING"
+
+    def spawn_coins(self):
+        # Ensure 1 Yellow and 1 Red coin
+        coin_types = [
+            {'color': settings.COIN_YELLOW_COLOR, 'value': 3, 'exists': False},
+            {'color': settings.COIN_RED_COLOR, 'value': 5, 'exists': False}
+        ]
+        
+        for c in self.coins:
+            if c.value == 3: coin_types[0]['exists'] = True
+            if c.value == 5: coin_types[1]['exists'] = True
+            
+        all_bodies = {part for s in self.snakes for part in s.body}
+        occupied = all_bodies.union(set(self.food.positions))
+        if self.bombs:
+            for b in self.bombs:
+                if b.active: occupied.add(b.position)
+        for c in self.coins:
+            if c.active: occupied.add(c.position)
+            
+        for c_type in coin_types:
+            if not c_type['exists']:
+                new_coin = Coin(c_type['color'], c_type['value'])
+                new_coin.spawn(occupied)
+                if new_coin.active:
+                    self.coins.append(new_coin)
+                    occupied.add(new_coin.position)
 
     def spawn_bomb(self):
         if len(self.bombs) < 1:
@@ -159,6 +193,13 @@ class Game:
             
         self.explosions = [e for e in self.explosions if e.update()]
 
+        if self.state == "PLAYING":
+            elapsed = (pygame.time.get_ticks() - self.start_time) // 1000
+            self.time_remaining = max(0, settings.GAME_DURATION - elapsed)
+            if self.time_remaining == 0:
+                self.state = "GAMEOVER"
+                return
+
         current_time = pygame.time.get_ticks()
         if current_time - self.last_move_time < settings.MOVE_DELAY:
             return
@@ -195,7 +236,20 @@ class Game:
                 snake.grow_pending += 1
                 self.score[i] += 10
                 self.food.remove(head)
-                self.food.spawn([s.body for s in self.snakes], self.bombs[0].position if self.bombs else None)
+                self.food.spawn([s.body for s in self.snakes], self.bombs[0].position if self.bombs else None, {c.position for c in self.coins if c.active})
+            
+            for c in self.coins[:]:
+                if c.active and head == c.position:
+                    # Yellow = 3 apples (30), Red = 5 apples (50)
+                    points = 30 if c.value == 3 else 50
+                    self.score[i] += points
+                    # Optional: Grow snake? "Yellow coin worth 3 apples" usually implies score, maybe growth too?
+                    # User said "worth 3 apples", implying score equivalence. 
+                    # If it implies growth, 3 apples would be huge growth. 
+                    # Standard interpretation is usually score. Let's stick to score for now or small growth?
+                    # Let's do score only to avoid uncontrollable length.
+                    self.coins.remove(c)
+                    self.spawn_coins()
             
             for b in self.bombs:
                 if b.active and head == b.position:
@@ -243,6 +297,8 @@ class Game:
             self.food.draw(self.screen)
             for b in self.bombs:
                 b.draw(self.screen)
+            for c in self.coins:
+                c.draw(self.screen)
                 
             for snake in self.snakes:
                 snake.draw(self.screen)
@@ -254,6 +310,11 @@ class Game:
             if self.mode == "VERSUS":
                 score_text += f" | P2 Score: {self.score[1]}"
             
+            # Timer
+            timer_text = f"Time: {self.time_remaining}"
+            timer_surf = self.font.render(timer_text, True, (255, 255, 255))
+            self.screen.blit(timer_surf, (settings.SCREEN_WIDTH // 2 - timer_surf.get_width() // 2, 10))
+
             score_surf = self.font.render(score_text, True, settings.TEXT_COLOR)
             self.screen.blit(score_surf, (10, 10))
 
@@ -280,20 +341,96 @@ class Game:
                 
                 msg = "GAME OVER"
                 if self.mode == "VERSUS":
-                    if self.snakes[0].alive and not self.snakes[1].alive:
-                        msg = "Player 1 WINS!"
-                    elif not self.snakes[0].alive and self.snakes[1].alive:
-                        msg = "Player 2 WINS!"
+                    if self.time_remaining == 0:
+                        if self.score[0] > self.score[1]:
+                            msg = "Time's Up! P1 WINS!"
+                        elif self.score[1] > self.score[0]:
+                            msg = "Time's Up! P2 WINS!"
+                        else:
+                            msg = "Time's Up! DRAW!"
                     else:
-                        msg = "DRAW!"
+                         # Existing death logic
+                        if self.snakes[0].alive and not self.snakes[1].alive:
+                            msg = "Player 1 WINS!"
+                        elif not self.snakes[0].alive and self.snakes[1].alive:
+                            msg = "Player 2 WINS!"
+                        else:
+                            msg = "DRAW!"
+                else:
+                    if self.time_remaining == 0:
+                         msg = f"Time's Up! Score: {self.score[0]}"
                 
+                # Draw Podium if VS mode
+                if self.mode == "VERSUS":
+                    self.draw_podium(self.score[0], self.score[1])
+
                 over_text = self.title_font.render(msg, True, (255, 255, 255))
-                self.screen.blit(over_text, (settings.SCREEN_WIDTH//2 - over_text.get_width()//2, 150))
+                self.screen.blit(over_text, (settings.SCREEN_WIDTH//2 - over_text.get_width()//2, 50))
                 
                 for btn in self.buttons['GAMEOVER']:
                     btn.draw(self.screen)
-                
+        
         pygame.display.flip()
+
+    def draw_podium(self, score1, score2):
+        cx = settings.SCREEN_WIDTH // 2
+        cy = settings.SCREEN_HEIGHT // 2 + 50
+        
+        # Platforms
+        # 1st place is higher (center), 2nd is lower (left or right)
+        # We are just showing 2 players. 
+        # If P1 wins: P1 Center High, P2 Right Low
+        # If P2 wins: P2 Center High, P1 Left Low
+        # If Draw: Both same height
+        
+        p1_color = settings.SNAKE_COLOR_1
+        p2_color = (147, 112, 219)
+        
+        rect_width = 80
+        
+        if score1 > score2:
+            # P1 1st (Center), P2 2nd (Right)
+            # 1st Place
+            pygame.draw.rect(self.screen, (255, 215, 0), (cx - rect_width//2, cy, rect_width, 100))
+            self.draw_snake_head_icon(cx, cy - 30, p1_color)
+            self.draw_text("1", cx, cy + 20, (0,0,0))
+            
+            # 2nd Place
+            pygame.draw.rect(self.screen, (192, 192, 192), (cx + rect_width//2 + 10, cy + 40, rect_width, 60))
+            self.draw_snake_head_icon(cx + rect_width//2 + 10 + rect_width//2, cy + 40 - 30, p2_color)
+            self.draw_text("2", cx + rect_width//2 + 10 + rect_width//2, cy + 60, (0,0,0))
+            
+        elif score2 > score1:
+            # P2 1st (Center), P1 2nd (Left)
+             # 1st Place
+            pygame.draw.rect(self.screen, (255, 215, 0), (cx - rect_width//2, cy, rect_width, 100))
+            self.draw_snake_head_icon(cx, cy - 30, p2_color)
+            self.draw_text("1", cx, cy + 20, (0,0,0))
+            
+            # 2nd Place
+            pygame.draw.rect(self.screen, (192, 192, 192), (cx - rect_width//2 - 10 - rect_width, cy + 40, rect_width, 60))
+            self.draw_snake_head_icon(cx - rect_width//2 - 10 - rect_width//2, cy + 40 - 30, p1_color)
+            self.draw_text("2", cx - rect_width//2 - 10 - rect_width//2, cy + 60, (0,0,0))
+            
+        else:
+            # Draw - Same Height
+            pygame.draw.rect(self.screen, (192, 192, 192), (cx - rect_width - 5, cy + 20, rect_width, 80))
+            self.draw_snake_head_icon(cx - rect_width - 5 + rect_width//2, cy + 20 - 30, p1_color)
+            
+            pygame.draw.rect(self.screen, (192, 192, 192), (cx + 5, cy + 20, rect_width, 80))
+            self.draw_snake_head_icon(cx + 5 + rect_width//2, cy + 20 - 30, p2_color)
+
+    def draw_snake_head_icon(self, x, y, color):
+        pygame.draw.circle(self.screen, color, (x, y), 20)
+        # Eyes
+        pygame.draw.circle(self.screen, (255, 255, 255), (x - 8, y - 8), 6)
+        pygame.draw.circle(self.screen, (0, 0, 0), (x - 8, y - 8), 2)
+        pygame.draw.circle(self.screen, (255, 255, 255), (x + 8, y - 8), 6)
+        pygame.draw.circle(self.screen, (0, 0, 0), (x + 8, y - 8), 2)
+
+    def draw_text(self, text, x, y, color):
+        surf = self.font.render(text, True, color)
+        self.screen.blit(surf, (x - surf.get_width()//2, y - surf.get_height()//2))
 
     def run(self):
         while self.running:

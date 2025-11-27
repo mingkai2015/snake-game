@@ -72,20 +72,61 @@ class Bomb:
             pygame.draw.circle(surface, (255, 255, 0), spark_pos, 4)
             pygame.draw.circle(surface, (255, 50, 0), spark_pos, 2)
 
+class Coin:
+    def __init__(self, color, value):
+        self.position = (-1, -1)
+        self.color = color
+        self.value = value
+        self.active = False
+        
+    def spawn(self, occupied_positions):
+        if self.active: return
+        
+        attempts = 0
+        while attempts < 100:
+            x = random.randint(0, settings.GRID_WIDTH - 1)
+            y = random.randint(0, settings.GRID_HEIGHT - 1)
+            if (x, y) not in occupied_positions:
+                self.position = (x, y)
+                self.active = True
+                return
+            attempts += 1
+
+    def draw(self, surface):
+        if not self.active: return
+        x, y = self.position
+        rect = pygame.Rect(x * settings.GRID_SIZE, y * settings.GRID_SIZE, settings.GRID_SIZE, settings.GRID_SIZE)
+        
+        c = rect.center
+        # Draw Coin - Bigger size
+        radius = settings.GRID_SIZE // 2 + 2
+        pygame.draw.circle(surface, (200, 150, 0) if self.value == 3 else (150, 0, 0), c, radius) # Darker outline
+        pygame.draw.circle(surface, self.color, c, radius - 2) # Main body
+        
+        # Shine/Text
+        # Simple shine
+        pygame.draw.circle(surface, (255, 255, 255), (c[0] - 5, c[1] - 5), 4)
+        
+        # Value text (optional, maybe too small)
+        # text_surf = font.render(str(self.value), True, (255, 255, 255))
+        # surface.blit(text_surf, (c[0] - text_surf.get_width()//2, c[1] - text_surf.get_height()//2))
+
 class Food:
     def __init__(self, count=5):
         self.positions = []
         self.count = count
 
-    def spawn(self, snake_bodies, bomb_pos=None):
+    def spawn(self, snake_bodies, bomb_pos=None, coin_positions=None):
         while len(self.positions) < self.count:
-            self._add_one(snake_bodies, bomb_pos)
+            self._add_one(snake_bodies, bomb_pos, coin_positions)
 
-    def _add_one(self, snake_bodies, bomb_pos):
+    def _add_one(self, snake_bodies, bomb_pos, coin_positions):
         all_body_parts = {part for body in snake_bodies for part in body}
         occupied = all_body_parts.union(set(self.positions))
         if bomb_pos:
             occupied.add(bomb_pos)
+        if coin_positions:
+            occupied.update(coin_positions)
             
         attempts = 0
         while attempts < 50:
@@ -129,4 +170,3 @@ class Food:
             pygame.draw.circle(surface, (30, 30, 30), (rect.centerx + 2, rect.centery + 4), settings.GRID_SIZE // 2 - 2)
             pygame.draw.circle(surface, settings.FOOD_COLOR, rect.center, settings.GRID_SIZE // 2 - 2)
             pygame.draw.ellipse(surface, (50, 205, 50), (rect.centerx - 5, rect.top + 2, 10, 8))
-
