@@ -47,6 +47,9 @@ class Snake:
                 # Unfreeze
                 self.color1 = self.original_color1
                 self.color2 = self.original_color2
+                # Length - 2, restore original game state
+                if len(self.body) > 2:
+                    self.shrink(2)
             return 
             
         self.direction = self.next_direction
@@ -57,20 +60,29 @@ class Snake:
 
         # Check wall collision - Bounce Logic
         if not (0 <= new_head[0] < settings.GRID_WIDTH and 0 <= new_head[1] < settings.GRID_HEIGHT):
-            if len(self.body) > 2:
-                self.body.pop()
-                self.body.pop()
-            else:
-                self.alive = False
-                return
-            
+            # Reverse direction
             self.direction = (self.direction[0] * -1, self.direction[1] * -1)
             self.next_direction = self.direction
-            new_head = (head_x + self.direction[0], head_y + self.direction[1])
             
-            if not (0 <= new_head[0] < settings.GRID_WIDTH and 0 <= new_head[1] < settings.GRID_HEIGHT):
-                 self.alive = False
-                 return
+            if len(self.body) > 2:
+                # Pop 2 from head to avoid self-collision (reversing into neck) and satisfy "length - 2"
+                self.body.pop(0)
+                self.body.pop(0)
+                return
+            else:
+                # Length <= 2, just bounce and ignore self-collision for this step
+                new_head = (head_x + self.direction[0], head_y + self.direction[1])
+                
+                if not (0 <= new_head[0] < settings.GRID_WIDTH and 0 <= new_head[1] < settings.GRID_HEIGHT):
+                     pass
+                
+                # Force move without collision check
+                self.body.insert(0, new_head)
+                if self.grow_pending > 0:
+                    self.grow_pending -= 1
+                else:
+                    self.body.pop()
+                return
 
         danger_zone = self.body[:]
         if self.grow_pending == 0:

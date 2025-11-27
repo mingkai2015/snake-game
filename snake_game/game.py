@@ -86,7 +86,8 @@ class Game:
                 'up': [pygame.K_UP], 'down': [pygame.K_DOWN], 
                 'left': [pygame.K_LEFT], 'right': [pygame.K_RIGHT]
             }
-            self.snakes.append(Snake(settings.GRID_WIDTH - (spawn_margin + 1), settings.GRID_HEIGHT - (spawn_margin + 1), (147, 112, 219), (75, 0, 130), p2_controls))
+            # Player 2 starts at Left-Bottom (parallel to P1 at Left-Top)
+            self.snakes.append(Snake(spawn_margin, settings.GRID_HEIGHT - (spawn_margin + 1), (147, 112, 219), (75, 0, 130), p2_controls))
             
         self.food = Food(count=5)
         self.food.spawn([s.body for s in self.snakes])
