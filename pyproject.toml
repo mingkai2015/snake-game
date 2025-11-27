@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "snake-game"
+version = "0.1.0"
+description = "Snake 3D - PvZ Style"
+authors = ["User <user@example.com>"]
+readme = "readme.md"
+packages = [{include = "snake_game"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pygame = "^2.6.1"
+
+[tool.poetry.scripts]
+start = "snake_game.main:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
